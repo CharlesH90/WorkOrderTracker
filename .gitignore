@@ -1,0 +1,8 @@
+bin/
+obj/
+node_modules/
+client/.angular/
+client/dist/
+*.user
+.vs/
+.DS_Store
