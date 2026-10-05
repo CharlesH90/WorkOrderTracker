@@ -75,14 +75,29 @@ public class BuildingsController(AppDbContext db) : ControllerBase
         if (building is null) return NotFound();
 
         if (await db.WorkOrders.AnyAsync(w => w.BuildingId == id))
-            return Conflict(new ProblemDetails
-            {
-                Title = "Building has work orders",
-                Detail = "Delete or reassign this building's work orders first."
-            });
+            return HasWorkOrders();
 
         db.Buildings.Remove(building);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // A work order was added after the check above; the foreign key caught it.
+            db.ChangeTracker.Clear();
+            if (await db.WorkOrders.AnyAsync(w => w.BuildingId == id))
+                return HasWorkOrders();
+            throw;
+        }
+
         return NoContent();
     }
+
+    private ConflictObjectResult HasWorkOrders() =>
+        Conflict(new ProblemDetails
+        {
+            Title = "Building has work orders",
+            Detail = "Delete or reassign this building's work orders first."
+        });
 }

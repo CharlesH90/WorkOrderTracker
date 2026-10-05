@@ -33,14 +33,23 @@ public class TechniciansController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<TechnicianDto>> Create(TechnicianRequest request)
     {
         if (await db.Technicians.AnyAsync(t => t.Email == request.Email))
-        {
-            ModelState.AddModelError(nameof(request.Email), "A technician with this email already exists.");
-            return BadRequest(new ValidationProblemDetails(ModelState));
-        }
+            return DuplicateEmail(request);
 
         var tech = new Technician { Name = request.Name, Email = request.Email, Trade = request.Trade };
         db.Technicians.Add(tech);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent request took the email after the check above; the unique index caught it.
+            db.ChangeTracker.Clear();
+            if (await db.Technicians.AnyAsync(t => t.Email == request.Email))
+                return DuplicateEmail(request);
+            throw;
+        }
+
         return CreatedAtAction(nameof(Get), new { id = tech.Id }, tech.ToDto());
     }
 
@@ -55,29 +64,58 @@ public class TechniciansController(AppDbContext db) : ControllerBase
         if (tech is null) return NotFound();
 
         if (await db.Technicians.AnyAsync(t => t.Email == request.Email && t.Id != id))
-        {
-            ModelState.AddModelError(nameof(request.Email), "A technician with this email already exists.");
-            return BadRequest(new ValidationProblemDetails(ModelState));
-        }
+            return DuplicateEmail(request);
 
         tech.Name = request.Name;
         tech.Email = request.Email;
         tech.Trade = request.Trade;
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            if (await db.Technicians.AnyAsync(t => t.Email == request.Email && t.Id != id))
+                return DuplicateEmail(request);
+            throw;
+        }
+
         return NoContent();
     }
 
-    /// <summary>Delete a technician. Their work orders become unassigned.</summary>
+    /// <summary>
+    /// Delete a technician. Open, on-hold and cancelled work orders become unassigned.
+    /// Fails with 409 while the technician still has in-progress or completed work orders,
+    /// because those must always have a technician.
+    /// </summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id)
     {
         var tech = await db.Technicians.FindAsync(id);
         if (tech is null) return NotFound();
 
+        var needsTechnician = await db.WorkOrders.CountAsync(w =>
+            w.TechnicianId == id &&
+            (w.Status == WorkOrderStatus.InProgress || w.Status == WorkOrderStatus.Completed));
+        if (needsTechnician > 0)
+            return Conflict(new ProblemDetails
+            {
+                Title = "Technician has assigned work orders",
+                Detail = $"{needsTechnician} in-progress or completed work order(s) still reference this technician. Reassign them first."
+            });
+
         db.Technicians.Remove(tech);
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private BadRequestObjectResult DuplicateEmail(TechnicianRequest request)
+    {
+        ModelState.AddModelError(nameof(request.Email), "A technician with this email already exists.");
+        return BadRequest(new ValidationProblemDetails(ModelState));
     }
 }
