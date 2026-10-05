@@ -1,0 +1,83 @@
+# Builds and tests the API and the Angular client on every push and pull request to main.
+# The tests use SQLite in-memory, so CI needs no SQL Server.
+
+trigger:
+  branches:
+    include: [ main ]
+
+pr:
+  branches:
+    include: [ main ]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: Release
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+stages:
+  - stage: Build
+    displayName: Build and test
+    jobs:
+      - job: Api
+        displayName: API (.NET 8)
+        steps:
+          - task: UseDotNet@2
+            displayName: Install .NET 8 SDK
+            inputs:
+              packageType: sdk
+              version: 8.0.x
+
+          - script: dotnet restore WorkOrderTracker.sln
+            displayName: Restore
+
+          - script: dotnet build WorkOrderTracker.sln --configuration $(buildConfiguration) --no-restore
+            displayName: Build
+
+          - script: >
+              dotnet test WorkOrderTracker.sln
+              --configuration $(buildConfiguration)
+              --no-build
+              --logger trx
+              --results-directory $(Agent.TempDirectory)/TestResults
+              --collect "XPlat Code Coverage"
+              --settings coverage.runsettings
+            displayName: Test
+
+          - task: PublishTestResults@2
+            displayName: Publish test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: '**/*.trx'
+              searchFolder: $(Agent.TempDirectory)/TestResults
+
+          - task: PublishCodeCoverageResults@2
+            displayName: Publish code coverage
+            condition: succeededOrFailed()
+            inputs:
+              summaryFileLocation: $(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml
+
+      - job: Client
+        displayName: Angular client
+        steps:
+          - task: NodeTool@0
+            displayName: Install Node 20
+            inputs:
+              versionSpec: 20.x
+
+          - task: Cache@2
+            displayName: Cache npm packages
+            inputs:
+              key: 'npm | "$(Agent.OS)" | client/package-lock.json'
+              path: $(Pipeline.Workspace)/.npm
+
+          - script: npm ci --cache $(Pipeline.Workspace)/.npm
+            displayName: Install dependencies
+            workingDirectory: client
+
+          - script: npm run build
+            displayName: Build
+            workingDirectory: client
