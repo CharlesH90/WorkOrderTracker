@@ -2,11 +2,19 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using WorkOrderTracker.Api.Data;
+using WorkOrderTracker.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.Configure<BusinessOptions>(builder.Configuration.GetSection("Business"));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IWorkOrderService, WorkOrderService>();
+
+// Turns unhandled exceptions into application/problem+json instead of an empty 500.
+builder.Services.AddProblemDetails();
 
 builder.Services
     .AddControllers()
@@ -17,7 +25,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Work Order Tracker API", Version = "v1" });
     var xmlPath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
-    c.IncludeXmlComments(xmlPath);
+    if (File.Exists(xmlPath)) c.IncludeXmlComments(xmlPath);
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -25,6 +33,8 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -40,3 +50,6 @@ app.UseCors();
 app.MapControllers();
 
 app.Run();
+
+// Exposes the entry point so integration tests can host the API with WebApplicationFactory<Program>.
+public partial class Program { }
