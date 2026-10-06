@@ -1,6 +1,6 @@
 # Building Work Order Tracker
 
-[![Build Status](https://dev.azure.com/charlesh90/WorkOrderTracker/_apis/build/status%2FCharlesH90.WorkOrderTracker%20(2)?branchName=main)](https://dev.azure.com/charlesh90/WorkOrderTracker/_build)
+[![Build Status](https://dev.azure.com/charlesh90/WorkOrderTracker/_apis/build/status%2FCharlesH90.WorkOrderTracker%20%282%29?branchName=main)](https://dev.azure.com/charlesh90/WorkOrderTracker/_build)
 
 A maintenance work-order tracker for property managers: log repair requests per building, assign them to technicians, and track them through to completion.
 
