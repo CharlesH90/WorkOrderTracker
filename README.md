@@ -66,7 +66,7 @@ dotnet test
 
 ## CI
 
-[`azure-pipelines.yml`](azure-pipelines.yml) runs two parallel jobs on `ubuntu-latest` for every push or pull request to `main`:
+[`azure-pipelines.yml`](azure-pipelines.yml) runs two jobs on `ubuntu-24.04` for every push or pull request to `main`:
 
 - **API:** restore, build, test, then publish test results and Cobertura code coverage.
 - **Client:** `npm ci`, then a production Angular build.
