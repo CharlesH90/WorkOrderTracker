@@ -63,6 +63,9 @@ Status and priority are stored as strings so the table can be read without a loo
 ```bash
 dotnet test
 ```
+<img width="745" height="150" alt="image" src="https://github.com/user-attachments/assets/afe975db-4387-43b6-8538-612d821c155c" />
+
+<img width="815" height="533" alt="image" src="https://github.com/user-attachments/assets/274ae8c0-91bc-46d8-9d8f-1ee2e0f99baf" />
 
 58 tests, with about 92% line coverage excluding migrations. They use **SQLite in-memory** instead of EF's InMemory provider, because SQLite enforces foreign keys and unique indexes. That means the tests check the real constraints, not just the application code. `ApiTests` sends real HTTP requests through the full pipeline, so model binding, data-annotation validation and JSON enum handling are covered too.
 
