@@ -6,8 +6,14 @@ using WorkOrderTracker.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The connection string holds a password, so it never lives in appsettings.json.
+// Locally it comes from user-secrets (see README); elsewhere from the
+// ConnectionStrings__DefaultConnection environment variable.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException(
+            "Connection string 'DefaultConnection' is not set. Run: dotnet user-secrets set " +
+            "\"ConnectionStrings:DefaultConnection\" \"<connection string>\" (see README).")));
 
 builder.Services.Configure<BusinessOptions>(builder.Configuration.GetSection("Business"));
 builder.Services.AddSingleton(TimeProvider.System);

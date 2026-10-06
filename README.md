@@ -80,15 +80,25 @@ The tests don't need SQL Server, so the pipeline has no database dependency.
 Prerequisites: .NET 8 SDK, Node 20+, Docker Desktop.
 
 ```bash
-docker compose up -d                 # SQL Server on localhost:1433
+# 1. Database password: kept out of source control
+cp .env.example .env                 # then edit .env and choose a password
 
+docker compose up -d                 # SQL Server on 127.0.0.1:1433
+
+# 2. Give the API the connection string through user-secrets (stored outside the repo)
 cd api/WorkOrderTracker.Api
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
+  "Server=localhost,1433;Database=WorkOrderTracker;User Id=sa;Password=<your .env password>;TrustServerCertificate=True"
+
 dotnet run                           # applies migrations and seed data; Swagger at http://localhost:5080/swagger
 
+# 3. Front end
 cd ../../client
 npm install
 npm start                            # http://localhost:4200, with /api proxied to the API
 ```
+
+No secrets are committed. In any other environment, set the connection string with the `ConnectionStrings__DefaultConnection` environment variable. If it's missing, the API fails at startup with a message explaining how to set it.
 
 The EF tool is pinned in `.config/dotnet-tools.json`. After changing the model, run `dotnet tool restore`, then `dotnet ef migrations add <Name>`.
 
@@ -110,5 +120,4 @@ Full request and response schemas are in Swagger.
 
 - **Optimistic concurrency on PUT:** add a row-version column and return 409 when the row changed since it was read, so two people editing the same work order can't silently overwrite each other.
 - **Paging** for `GET /api/workorders`.
-- **Secrets:** move the local SQL Server password out of `appsettings.json` into user-secrets or environment variables.
 - Angular screens for managing buildings and technicians. The API already supports them.

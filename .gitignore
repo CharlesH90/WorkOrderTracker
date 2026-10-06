@@ -6,3 +6,4 @@ client/dist/
 *.user
 .vs/
 .DS_Store
+.env

@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <UserSecretsId>workordertracker-api-5c1e8f2a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
